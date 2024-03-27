@@ -1,12 +1,15 @@
 from PyQt5.QtWidgets import QTextEdit, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QComboBox, QPushButton
+from Process import Process
+from PyQt5 import QtCore
+import globals
 
 
 class ProcessWindow(QWidget):
-    def __init__(self, process_id,num_processes):
+    def __init__(self, process_id):
         super().__init__()
-        self.process_id = process_id
-        self.num_processes = num_processes
+        self.process_id = process_id if isinstance(process_id, int) else 0
         self.init_UI()
+        self.init_timer()
 
     def init_UI(self):
         layout = QVBoxLayout()
@@ -30,7 +33,7 @@ class ProcessWindow(QWidget):
         lbl_to = QLabel('To:')
         self.recipient_dropdown = QComboBox()
         # dropdown
-        for i in range(self.num_processes):
+        for i in range(globals.num_processes):
             if i != self.process_id:
                 self.recipient_dropdown.addItem(str(i))
         hbox_to.addWidget(lbl_to)
@@ -63,4 +66,24 @@ class ProcessWindow(QWidget):
         self.setWindowTitle(f'Process {self.process_id}')
 
     def send_message(self):
+        # This means mailbox was not created which means
+        # this is one of the direct message types
+        if globals.mailbox == None:
+            globals.process_list[self.process_id].send_message(int(self.recipient_dropdown.currentText()), self.message_input.text())
+        else:
+            globals.mailbox.send(self.process_id, int(self.recipient_dropdown.currentText()), self.message_input.text())
         pass
+
+    def init_timer(self):
+        # Set up a timer to call the update_messages function periodically
+        self.timer = QtCore.QTimer(self)
+        self.timer.timeout.connect(self.update_messages)
+        self.timer.start(500)  # Update every 1 second
+
+    def update_messages(self):
+        # Clears the current messages
+        self.inbox_text.clear()
+        # Iterates through all messages in the mailbox and displays them
+        for process_messages in globals.mailbox.messages:
+            for message in process_messages:
+                self.inbox_text.append(f"From {message.sender} to {message.recipient}: {message.message}")
